@@ -1,0 +1,63 @@
+# !/bin/sh
+# chkconfig: - 98 02
+# description:  PM_config_service
+# processname: PM_config
+# Source function library.
+if [ -f /etc/init.d/functions ] ; then
+     . /etc/init.d/functions
+elif [ -f /etc/rc.d/init.d/functions ] ; then
+     . /etc/rc.d/init.d/functions
+else
+     exit 0
+fi
+
+KIND="PM Config"
+
+# Monitoring PC IP
+hst="192.168.1.15"
+
+# Masters numbers 192.168.1.N
+mast=(198 222 204 195 212 203 217 218)
+
+# Ports for redirecting
+port=(8090 8091 8092 8093 8094 8095 8096 8097)
+
+start() {
+        echo -n $"Starting $KIND services: "
+        for i in ${!mast[*]};do
+            /sbin/iptables -t nat -A OUTPUT -p tcp -d 192.168.1.${mast[i]} --dport 3000 -j DNAT --to-destination  $hst:${port[i]}
+        done
+        echo
+        }
+stop() {
+       echo -n $"Shutting down $KIND services: "
+       for i in ${!mast[*]};do
+            /sbin/iptables -t nat -D OUTPUT -p tcp -d 192.168.1.${mast[i]} --dport 3000 -j DNAT --to-destination  $hst:${port[i]}
+       done
+       echo
+       }
+restart() {
+       echo -n $"Restarting $KIND services: "
+       for i in ${!mast[*]};do
+            /sbin/iptables -t nat -D OUTPUT -p tcp -d 192.168.1.${mast[i]} --dport 3000 -j DNAT --to-destination  $hst:${port[i]}
+       done
+       for i in ${!mast[*]};do
+            /sbin/iptables -t nat -A OUTPUT -p tcp -d 192.168.1.${mast[i]} --dport 3000 -j DNAT --to-destination  $hst:${port[i]}
+       done
+       echo
+}
+case "$1" in
+start)
+      start
+      ;;
+stop)
+      stop
+      ;;
+restart)
+        restart
+        ;;
+*)
+        echo $"Usage: $0 {start|stop|restart}"
+        exit 1
+esac
+exit $?
