@@ -1,6 +1,6 @@
 object MainForm: TMainForm
-  Left = 554
-  Top = 166
+  Left = 430
+  Top = 141
   Width = 1024
   Height = 736
   Caption = 'PM'
@@ -664,6 +664,14 @@ object MainForm: TMainForm
         end
       end
     end
+    object PageScroller1: TPageScroller
+      Left = 144
+      Top = 40
+      Width = 150
+      Height = 45
+      AutoScroll = False
+      TabOrder = 2
+    end
   end
   object ReFreshTimer: TTimer
     Enabled = False
@@ -720,6 +728,8 @@ object MainForm: TMainForm
     object Settings1: TMenuItem
       Caption = 'Set HV'
       OnClick = Settings1Click
+    end
+    object TMenuItem
     end
   end
   object SaveDialog: TSaveDialog

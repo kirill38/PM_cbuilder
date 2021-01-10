@@ -116,7 +116,7 @@ void __fastcall TMainForm::ReFreshTimerTimer(TObject *Sender){
             TM->MThrd->Adt = T;
             if(i<10){
                 Chart1->Series[i]->AddXY(SecondsBetween(TM->MThrd->Adt,TM->MThrd->Fdt),TM->MThrd->rate);
-                while(Chart1->Series[i]->Count()>500)Chart1->Series[i]->Delete(0);
+                while(Chart1->Series[i]->Count()>720)Chart1->Series[i]->Delete(0);
             }
         }
     }
@@ -444,7 +444,7 @@ void __fastcall TMainForm::ParseData(AnsiString filename){
                         );
             ST->Add(hdr.PCTime.DateTimeString() + "\t" +
                         AnsiString(hdr.masterIP[3]) + "\t" +
-                        AnsiString(hdr.Relay) + "(" + AnsiString(hdr.Address) + ")" + "\t" +
+                        AnsiString(hdr.RelayChannel) + "(" + AnsiString(hdr.Address) + ")" + "\t" +
                         AnsiString(hdr.Parameter) + "\t" +
                         AnsiString(hdr.GetDTms) + "\t" +
                         AnsiString(hdr.ValueSize) + "\t" +

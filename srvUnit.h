@@ -21,6 +21,7 @@ public:
     int *PArray;
 
     __fastcall TChannel(AnsiString AChan);
+    __fastcall TChannel(int ARelay, int ARelayChannel, int APair, int ARSBR, int AAddress, int AVersion);
     __fastcall ~TChannel(void);
 
     AnsiString __fastcall GetParamsList(void);
@@ -28,8 +29,23 @@ public:
 //---------------------------------------------------------------------------
 extern PACKAGE TChannel *ch;
 //---------------------------------------------------------------------------
+class TSensor{
+private:
+protected:
+public:
+    int I2CAddress;
+    int SensorType;
+
+    __fastcall TSensor(int AI2CAddress, int ASensorType);
+    __fastcall ~TSensor(void);
+
+};
+//---------------------------------------------------------------------------
+extern PACKAGE TSensor *sn;
+//---------------------------------------------------------------------------
 class TServer{
 private:
+    TSensor* PSensor;
 protected:
 public:
     AnsiString Address;
@@ -40,6 +56,12 @@ public:
     int Port;
     int LocalPort;
     TChannel **Channels;
+
+    TList *Sensors;
+
+    __fastcall AddSensor(int AI2CAddress, int ASensorType);
+    __fastcall ClearSensorsList(void);
+
     __fastcall TServer(AnsiString str);
     __fastcall ~TServer(void);
 
@@ -86,6 +108,7 @@ public:
     __fastcall TDataHeader(void);
     __fastcall ~TDataHeader(void);
     void __fastcall TDataHeader::AddData(TDateTime APCTime, AnsiString AMasterAddress, TChannel *AChannel, int AParameter, int AValueSize);
+    void __fastcall TDataHeader::AddMasterData(TDateTime APCTime, AnsiString AMasterAddress, int AParameter, int AValueSize);
 };
 //---------------------------------------------------------------------------
 extern PACKAGE TDataHeader *dr;

@@ -45,6 +45,10 @@ private:
 
     TData *D;
     TObject *FOwner;
+
+    TSensor *PS;
+    int Pparameter;
+
     void __fastcall Next(void);
     void __fastcall Next2(void);
 
@@ -111,6 +115,7 @@ public:
 
     void __fastcall WaitSDB(void);
     void __fastcall StoreData_Sync(void);
+    void __fastcall StoreMasterData_Sync(void);
     AnsiString StoreData_s;
 
     int paramIndex, paramNum, paramNumShort, chanIndex, chanNum, XLIndex;
@@ -184,12 +189,22 @@ public:
     int __fastcall GetPowerState(void);
     bool __fastcall Permitted(void);
     bool __fastcall Permitted2(void);
+    
     bool __fastcall FreeRS(void);
     bool __fastcall FreeRS2(void);
+
     bool __fastcall I2CDevReadByte(unsigned char dev, unsigned char reg, unsigned char &val);
-    bool __fastcall I2CGetByte(unsigned char &val);
     bool __fastcall I2CDevWriteByte(unsigned char dev, unsigned char reg, unsigned char val);
-    bool __fastcall I2CPutByte(unsigned char val);
+
+
+    bool __fastcall I2CGetBytes(unsigned char dev, unsigned char byte_count, unsigned char *data);
+    bool __fastcall I2CSHT20GetRH(double &RH);
+    bool __fastcall I2CSHT20GetTemp(double &Temp);
+    bool __fastcall I2CSHT20GetUserReg(unsigned char &UserReg);
+    bool __fastcall I2CSHT20SetUserReg(unsigned char UserReg);
+
+    bool __fastcall I2CLPS331APGetWhoAmIReg(unsigned char &WhoAmIReg);
+
     int __fastcall SelectChannel(int channel);
     int __fastcall SetBaudrate(int brate);
     int __fastcall SetPower(int state);

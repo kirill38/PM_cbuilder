@@ -367,11 +367,11 @@ void __fastcall TMThread::Execute(){
                 }
 
                 unsigned char val;
-                /*
+
 
                 if( ((TMaster*)FOwner)->I2CDevReadByte(0x5C, 0x8, val) ) {
                     ALS("I2C Read = " + AnsiString(val), clGreen);
-                    if( ((TMaster*)FOwner)->I2CDevWriteByte(0x5C, 0x8, 0x2) ) {
+                    if( ((TMaster*)FOwner)->I2CDevWriteByte(0x5C, 0x8, 0) ) {
                         ALS("I2C Write is OK", clGreen);
                         if( ((TMaster*)FOwner)->I2CDevReadByte(0x5C, 0x8, val) ) ALS("I2C Read = " + AnsiString(val), clGreen);
                         else ALS("I2C Read error (3)", clRed);
@@ -381,48 +381,158 @@ void __fastcall TMThread::Execute(){
                 } else {
                     ALS("I2C Read error (1)", clRed);
                 }
-                */
 
-                //char str_hex_addr[10];
-                //for(unsigned char i_addr=0; i_addr<=0x77; i_addr++){
-                //    if( ((TMaster*)FOwner)->I2CDevReadByte(i_addr, 0, val) ) {
-                //        itoa(i_addr,str_hex_addr,16);
-                //        ALS("I2C Device with address " + AnsiString(str_hex_addr) + AnsiString(" present."), clGreen);
-                //    }
-                //}
 
-                val=0;
+                D->srvrs[Fmdi]->ClearSensorsList();
+                for(unsigned char i_addr_scan=0x8; i_addr_scan<=0x77; i_addr_scan++){
+                    unsigned char d[1];
+                    if( ((TMaster*)FOwner)->I2CGetBytes(i_addr_scan, 1, d) ) {
+                        ALS("I2C device with address " + AnsiString().sprintf("0x%X",i_addr_scan) + " found @ host [" + ((TMaster*)FOwner)->Client->Host + "]. Return data = " + AnsiString().sprintf("0x%X",d[0]), clGreen);
+                        D->srvrs[Fmdi]->AddSensor(i_addr_scan,1);
 
-                for(unsigned int i_retval=0; i_retval<16; i_retval++){
-                    if( ((TMaster*)FOwner)->I2CGetByte(val) ) {
-                        ALS("I2C Get Byte #" + AnsiString(i_retval) + AnsiString(" = ") + AnsiString(val), clGreen);
-                    }
-                }
-                
-                /*
-                if( ((TMaster*)FOwner)->I2CPutByte(0x40) ) {
-                    ALS("I2C Write 0x40 ok", clGreen);
-                    if( ((TMaster*)FOwner)->I2CPutByte(0xF5) ) {
-                        ALS("I2C Write 0xF5 ok", clGreen);
-                        ::Sleep(10);
-                        if( ((TMaster*)FOwner)->I2CPutByte(0x40) ) {
-                            ALS("I2C Write 0x40 ok", clGreen);
-                            if( ((TMaster*)FOwner)->I2CGetByte(val) ) {
-                                ALS("I2C Get 1 Byte = " + AnsiString(val), clGreen);
-                                if( ((TMaster*)FOwner)->I2CGetByte(val) ) {
-                                    ALS("I2C Get 2 Byte = " + AnsiString(val), clGreen);
-                                    if( ((TMaster*)FOwner)->I2CGetByte(val) ) {
-                                        ALS("I2C Get 3 Byte = " + AnsiString(val), clGreen);
-                                        if( ((TMaster*)FOwner)->I2CGetByte(val) ) {
 
-                                        }
-                                    }
-                                }
+
+                        /*
+                        for(unsigned int i_read=0; i_read<10; i_read++){
+                            if( ((TMaster*)FOwner)->I2CGetBytes(i_addr_scan, 1, d) ) {
+                                ALS("I2C device with address " + AnsiString().sprintf("%X",i_addr_scan) + " @ host [" + ((TMaster*)FOwner)->Client->Host + "]. Return data #" + AnsiString(i_read+1) + " = " + AnsiString().sprintf("%X",d[0]), clGreen);
+                            }else{
+                                ALS("I2C device with address " + AnsiString().sprintf("%X",i_addr_scan) + " read error [" + ((TMaster*)FOwner)->Client->Host + "]", clGray);
+                                break;
                             }
                         }
+                        */
                     }
                 }
+//--------------------------------------------- Pint Sensors List of Master ----
+                ALS("Print sensors list:", clGray);
+                for(unsigned char i_sens=0; i_sens<D->srvrs[Fmdi]->Sensors->Count; i_sens++){
+                    PS = (TSensor*)D->srvrs[Fmdi]->Sensors->Items[i_sens];
+                    ALS("Address and type of sensor item #" + AnsiString(i_sens) + " = " + AnsiString().sprintf("0x%X",PS->I2CAddress) + " ; " + AnsiString(PS->SensorType), clGreen);
+
+                }
+//-------------------------------------------- Read Sensors Data from Master ---
+                unsigned char UserReg=0;
+                int raw_p=0;
+                short raw_t=0;
+                double RH=0,Temp=0,P=0;
+
+                for(unsigned char i_sens=0; i_sens<D->srvrs[Fmdi]->Sensors->Count; i_sens++){
+                    switch( ((TSensor*)D->srvrs[Fmdi]->Sensors->Items[i_sens])->I2CAddress ){
+                        case(0x40): //  Address of SHT20 Humidity Sensor
+                            if( ((TMaster*)FOwner)->I2CSHT20GetUserReg(UserReg) ) {
+                                ALS("SHT20 found. I2C_SHT20_UserReg = " + AnsiString().sprintf("0x%X",UserReg) + " [" + ((TMaster*)FOwner)->Client->Host + "]", clGreen);
+                                T = Now();
+                                if( ((TMaster*)FOwner)->I2CSHT20GetRH(RH) ) {
+                                    ALS("SHT20 RH(%) = " + AnsiString().sprintf("%.1f",RH) + " [" + ((TMaster*)FOwner)->Client->Host + "]", clGreen);
+                                    Pparameter = 128;
+                                    StoreData_s = AnsiString().sprintf("%.2f",RH);
+                                    Synchronize(StoreMasterData_Sync);
+                                }
+                                ::Sleep(100);
+                                T = Now();
+                                if( ((TMaster*)FOwner)->I2CSHT20GetTemp(Temp) ) {
+                                    ALS("SHT20 T(C) = " + AnsiString().sprintf("%.1f",Temp) + " [" + ((TMaster*)FOwner)->Client->Host + "]", clGreen);
+                                    Pparameter = 127;
+                                    StoreData_s = AnsiString().sprintf("%.2f",Temp);
+                                    Synchronize(StoreMasterData_Sync);
+                                }
+                            }else{
+                                ALS("I2C SHT20 User Register read error. Device not found. ", clGray);
+                            }
+                        break;
+                        case(0x5C):
+                            if( ((TMaster*)FOwner)->I2CDevReadByte(0x5C,0xF,UserReg) ) {
+                                if(UserReg==0xBB){
+                                    ALS("LPS331AP found. I2C_LPS331AP_WhoAmIReg = " + AnsiString().sprintf("0x%X",UserReg) + " [" + ((TMaster*)FOwner)->Client->Host + "]", clGreen);
+                                    if( ((TMaster*)FOwner)->I2CDevReadByte(0x5C,0x20,UserReg) ) {
+                                        ALS("LPS331AP CTRL1 Register read. I2C_LPS331AP_CTRL1_REG = " + AnsiString().sprintf("0x%X",UserReg), clGreen);
+                                    }else{ALS("LPS331AP Read 20h Register error.",clRed);}
+
+                                    if( ((TMaster*)FOwner)->I2CDevReadByte(0x5C,0x8,UserReg) ) {
+                                        ALS("LPS331AP REF_P_XL Register read. I2C_LPS331AP_REF_P_REG_XL = " + AnsiString().sprintf("0x%X",UserReg), clGreen);
+                                    }else{ALS("LPS331AP Read 08h Register error.",clRed);}
+                                    if( ((TMaster*)FOwner)->I2CDevReadByte(0x5C,0x9,UserReg) ) {
+                                        ALS("LPS331AP REF_P_L  Register read. I2C_LPS331AP_REF_P_REG_L  = " + AnsiString().sprintf("0x%X",UserReg), clGreen);
+                                    }else{ALS("LPS331AP Read 09h Register error.",clRed);}
+                                    if( ((TMaster*)FOwner)->I2CDevReadByte(0x5C,0xA,UserReg) ) {
+                                        ALS("LPS331AP REF_P_H  Register read. I2C_LPS331AP_REF_P_REG_H  = " + AnsiString().sprintf("0x%X",UserReg), clGreen);
+                                    }else{ALS("LPS331AP Read 0Ah Register error.",clRed);}
+
+                                    if( ((TMaster*)FOwner)->I2CDevWriteByte(0x5C,0x20,0x84) ) {
+                                        ALS("LPS331AP CTRL1(20h) Register write. Power up device. I2C_LPS331AP_CTRL1_REG = 84h (PD[7] BDU[2] bits is set)", clGreen);
+                                    }else{ALS("LPS331AP Write 20h Register error.",clRed);}
+
+                                    //for(int i_count=0;i_count<10;i_count++){
+
+                                    if( ((TMaster*)FOwner)->I2CDevWriteByte(0x5C,0x21,0x1) ) {
+                                        ALS("LPS331AP CTRL2(21h) Register write. Start Measure. I2C_LPS331AP_CTRL2_REG = 01h (ONE_SHOT[0] bits is set)", clGreen);
+                                    }else{ALS("LPS331AP Write 21h Register error.",clRed);}
+
+                                    ::Sleep(50);
+                                    T = Now();
+                                    if( ((TMaster*)FOwner)->I2CDevReadByte(0x5C,0x28,UserReg) ) {
+                                        ALS("LPS331AP Read 28h Register = " + AnsiString(UserReg),clGray);
+                                        raw_p = UserReg;
+                                        ::Sleep(50);
+                                        if( ((TMaster*)FOwner)->I2CDevReadByte(0x5C,0x29,UserReg) ) {
+                                            ALS("LPS331AP Read 29h Register = " + AnsiString(UserReg),clGray);
+                                            raw_p = raw_p|(short)UserReg<<8;
+                                            ::Sleep(50);
+                                            if( ((TMaster*)FOwner)->I2CDevReadByte(0x5C,0x2A,UserReg) ) {
+                                                ALS("LPS331AP Read 2Ah Register = " + AnsiString(UserReg),clGray);
+                                                raw_p = raw_p|(int)UserReg<<16;
+                                                P = (double)raw_p/40960;
+                                                ALS("LPS331AP Read P(kPa) = " + AnsiString().sprintf("%.3f",P) + " [" + ((TMaster*)FOwner)->Client->Host + "]",clGreen);
+                                                Pparameter = 131;
+                                                StoreData_s = AnsiString().sprintf("%.3f",P);
+                                                Synchronize(StoreMasterData_Sync);
+                                            }else{ALS("LPS331AP Read 2Ah Register error.",clRed);}
+                                        }else{ALS("LPS331AP Read 29h Register error.",clRed);}
+                                    }else{ALS("LPS331AP Read 28h Register error.",clRed);}
+
+                                    ::Sleep(50);
+                                    T = Now();
+                                    if( ((TMaster*)FOwner)->I2CDevReadByte(0x5C,0x2B,UserReg) ) {
+                                        ALS("LPS331AP Read 2Bh Register = " + AnsiString(UserReg),clGray);
+                                        raw_t = UserReg;
+                                        ::Sleep(50);
+                                        if( ((TMaster*)FOwner)->I2CDevReadByte(0x5C,0x2C,UserReg) ) {
+                                            ALS("LPS331AP Read 2Ch Register = " + AnsiString(UserReg),clGray);
+                                            raw_t = raw_t|(short)UserReg<<8;
+                                            Temp = 42.5 + (double)raw_t/480;
+
+                                            ALS("LPS331AP Read T(C) = " + AnsiString().sprintf("%.2f",Temp) + " [" + ((TMaster*)FOwner)->Client->Host + "]",clGreen);
+                                            Pparameter = 134;
+                                            StoreData_s = AnsiString().sprintf("%.2f",Temp);
+                                            Synchronize(StoreMasterData_Sync);
+
+                                        }else{ALS("LPS331AP Read 29h Register error.",clRed);}
+                                    }else{ALS("LPS331AP Read 28h Register error.",clRed);}
+
+                                    //} //end for i_count
+
+                                    if( ((TMaster*)FOwner)->I2CDevWriteByte(0x5C,0x20,0x0) ) {
+                                        ALS("LPS331AP CTRL1 Register write. Power down device. I2C_LPS331AP_CTRL1_REG = 00h (PD[7] BDU[2] bits is unset)", clGreen);
+                                    }else{ALS("LPS331AP Write 20h Register error.",clRed);}
+
+                                }else{ALS("LPS331AP WhoAmI Register is not BBh",clRed);}
+                            }else{ALS("LPS331AP Read WhoAmI Register error.",clRed);}
+                        break;
+                        default:
+                        break;
+                    }
+                }
+//----------------------------------------- block for check internal heater ----
+                /*
+                if( ((TMaster*)FOwner)->I2CSHT20SetUserReg(58) ) {
+                    ALS("I2C SHT20 SetUserReg = true", clGreen);
+                }
+                if( ((TMaster*)FOwner)->I2CSHT20GetUserReg(UserReg) ) {
+                    ALS("I2C SHT20 GetUserReg = " + AnsiString().sprintf("%d",UserReg), clGreen);
+                }
                 */
+
                 ALS("Connected to master " + ((TMaster*)FOwner)->Client->Host, clGreen);
                 ((TMaster*)FOwner)->temp_buf_s = "";
                 ((TMaster*)FOwner)->temp_buf_c = "";
@@ -591,6 +701,14 @@ void __fastcall TMThread::StoreData_Sync(void){
     if(D->df>3)ALS("CHECKPOINT_7");
     D->StoreData(T,D->srvrs[Fmdi]->Address,D->srvrs[Fmdi]->Channels[chanIndex],D->srvrs[Fmdi]->Channels[chanIndex]->PArray[paramIndex],StoreData_s.Length(),StoreData_s);
     if(D->df>3)ALS("CHECKPOINT_8");
+    //D->busy = false;
+}
+//---------------------------------------------------------------------------
+void __fastcall TMThread::StoreMasterData_Sync(void){
+    //D->busy = true;
+    if(D->df>3)ALS("CHECKPOINT_7.1");
+    D->StoreMasterData(T,D->srvrs[Fmdi]->Address,Pparameter,StoreData_s.Length(),StoreData_s);
+    if(D->df>3)ALS("CHECKPOINT_8.1");
     //D->busy = false;
 }
 //---------------------------------------------------------------------------
@@ -940,6 +1058,7 @@ AnsiString __fastcall TMaster::ReadFromRS(void){
 int __fastcall TMaster::SetOneCCParam(int ccAddr, int param, double value){
     if(D->df>2)MThrd->ALS("SetCCParam(" + AnsiString(ccAddr) + "," + AnsiString(param) + "," + AnsiString().sprintf("%f",value) + ") called...");
     SendToRS("*" + AnsiString(ccAddr) + "," + AnsiString(param) + "," + AnsiString().sprintf("%f",value));
+    return 0;
 }
 //---------------------------------------------------------------------------
 
@@ -1024,7 +1143,7 @@ int __fastcall TMaster::GetPowerState(void){
 bool __fastcall TMaster::Permitted(void){
     AnsiString str;
     char chr[] = "\xB\xBB\xB\xBB\x0\xC\x0\x0\x1\x2\x0\x0";
-    //                             L  _  _  _  _
+    //                            L  _  _  _  _
     str = AnsiString(chr,sizeof(chr)-1);
     if(D->df>3)MThrd->ALS("Request Permission TX: (" + AnsiString(str.Length()) + "bytes)");
 
@@ -1091,16 +1210,47 @@ bool __fastcall TMaster::FreeRS2(void){
     return true;
 }
 //---------------------------------------------------------------------------
-bool __fastcall TMaster::I2CPutByte(unsigned char val){
+bool __fastcall TMaster::I2CGetBytes(unsigned char dev, unsigned char byte_count, unsigned char *data){
     AnsiString str;
-    char chr[] = "\xB\xC2\xB\xC2\x0\x9\x0\x0\x0";
-    //------------0--1---2--3---4--5--6--7--8------[9 total]
-    //--------------------------------------^^^--
-    //                                      val
+    char chr[] = "\xB\xC3\xB\xC3\x0\xA\x0\x0\x0\x0";
 
-    chr[8] = val;
+    if(!byte_count)return false;
+
+    chr[8] = dev; //device to read
+    chr[9] = byte_count; //num of bytes to read
+
     str = AnsiString(chr,sizeof(chr)-1);
-    if(D->df>3)MThrd->ALS("I2C Put TX: (" + AnsiString(str.Length()) + "bytes)");
+    if(D->df>3)MThrd->ALS("I2C GetBytes TX: (" + AnsiString(str.Length()) + " bytes)");
+
+    try{
+        ClientWrite(str);
+        str = ClientRead(D->WaitForResponseInterval);
+    }catch(Exception &e){
+        MThrd->ALS("I2C GetBytes error: " + e.Message);
+        return false;
+    }
+    if(D->df>3)MThrd->ALS("I2C GetBytes return string: " + StrToHexStr(str));
+    if(str.SubString(1,4)!="\xB\xC3\xB\xC3" ||  str.c_str()[8]) {
+        if(D->df>3)MThrd->ALS("I2C GetBytes error in return string.");
+        return false;
+    }
+
+    for(unsigned char i_chr=0; i_chr<byte_count; i_chr++){
+        data[i_chr] = str.c_str()[10+i_chr];
+    }
+
+    return true;
+}
+//---------------------------------------------------------------------------
+bool __fastcall TMaster::I2CSHT20GetRH(double &RH){
+    AnsiString str;
+    char chr[] = "\xB\xC2\xB\xC2\x0\xA\x0\x0\x0\x0";
+
+    chr[8] = 0x40;
+    chr[9] = 0xF5;  //get hum, no hold master
+
+    str = AnsiString(chr,sizeof(chr)-1);
+    if(D->df>3)MThrd->ALS("I2C Put TX: (" + AnsiString(str.Length()) + " bytes)");
 
     try{
         ClientWrite(str);
@@ -1109,31 +1259,231 @@ bool __fastcall TMaster::I2CPutByte(unsigned char val){
         MThrd->ALS("I2C Put Byte error: " + e.Message);
         return false;
     }
-    MThrd->ALS("I2C Put return string: " + StrToHexStr(str));
-    if(str.c_str()[8]) return false;
+    if(D->df>3)MThrd->ALS("I2C Put return string: " + StrToHexStr(str));
+    if(str.c_str()[8]) {
+        MThrd->ALS("I2CGetHum error write to device.");
+        return false;
+    }
+
+    ::Sleep(100);
+
+    chr[1] = 0xc3;
+    chr[3] = 0xc3;
+    chr[9] = 0x3;
+    str = AnsiString(chr,sizeof(chr)-1);
+    if(D->df>3)MThrd->ALS("I2C Get TX: (" + AnsiString(str.Length()) + " bytes)");
+    try{
+        ClientWrite(str);
+        str = ClientRead(D->WaitForResponseInterval);
+    }catch(Exception &e){
+        MThrd->ALS("I2CRead error: " + e.Message);
+        return false;
+    }
+    if(str.c_str()[8]) {
+        MThrd->ALS("I2CGetHum error read from device.");
+        return false;
+    }
+    if(str.c_str()[5]!=0xD){
+        MThrd->ALS("I2CGetHum error. Not 3 bytes received.");
+        return false;
+    }
+
+    str.c_str()[11] = str.c_str()[11] & 0xFC; //unset status bits (two last bits)
+
+    //MThrd->ALS("GetRH() (1) RAW_RH = " + AnsiString((256*(double)(unsigned char)str.c_str()[10])+(unsigned char)str.c_str()[11]));
+    //RH = (256*(double)(unsigned char)str.c_str()[10]+(double)(unsigned char)str.c_str()[11])/(double)65536;
+    //RH = -6 + 125*RH;
+    //MThrd->ALS("GetRH() (1) RH(%) = " + AnsiString().sprintf("%.3f",RH));
+
+    //MThrd->ALS("GetRH() (2.1) RAW_RH = " + AnsiString((unsigned char)str.c_str()[11]));
+    //MThrd->ALS("GetRH() (2.2) RAW_RH = " + AnsiString((unsigned short)(str.c_str()[10]<<8)));
+    //MThrd->ALS("GetRH() (2.0) RAW_RH = " + AnsiString((unsigned short)str.c_str()[10]<<8|(unsigned char)str.c_str()[11]));
+    //RH = ((double)((unsigned char)str.c_str()[11]|(unsigned short)str.c_str()[10]<<8))/65536;
+    RH = -6+125*((double)((unsigned short)(str.c_str()[10]<<8)|(unsigned char)str.c_str()[11]))/65536;
+    //MThrd->ALS("GetRH() (2) RH(%) = " + AnsiString().sprintf("%.3f",RH));
+
+    //RH = -6 + 125*RH;
     return true;
 }
 //---------------------------------------------------------------------------
-bool __fastcall TMaster::I2CGetByte(unsigned char &val){
+bool __fastcall TMaster::I2CSHT20GetTemp(double &Temp){
     AnsiString str;
-    char chr[] = "\xB\xC3\xB\xC3\x0\xA\x0\x0\x0\x1";
-    //------------0--1---2--3---4--5--6--7--8--9-------[10 total or 0xA]
-    //-----------------------------------------^^^-
-    //                                         write flag or num of read bytes?
+    char chr[] = "\xB\xC2\xB\xC2\x0\xA\x0\x0\x0\x0";
+
+    chr[8] = 0x40;
+    chr[9] = 0xF3; //get temp, no hold master
+
     str = AnsiString(chr,sizeof(chr)-1);
-    if(D->df>3)MThrd->ALS("I2C Get TX: (" + AnsiString(str.Length()) + "bytes)");
+    if(D->df>3)MThrd->ALS("I2C Put TX: (" + AnsiString(str.Length()) + " bytes)");
 
     try{
         ClientWrite(str);
         str = ClientRead(D->WaitForResponseInterval);
     }catch(Exception &e){
-        MThrd->ALS("I2C Get Byte error: " + e.Message);
+        MThrd->ALS("I2C Put Byte error: " + e.Message);
         return false;
     }
-    MThrd->ALS("I2C Get return string: " + StrToHexStr(str));
-    if(str.c_str()[8]) return false;
-    val = str.c_str()[10];
+    if(D->df>3)MThrd->ALS("I2C Put return string: " + StrToHexStr(str));
+    if(str.c_str()[8]) {
+        MThrd->ALS("I2CGetTemp error write to device.");
+        return false;
+    }
 
+    ::Sleep(100);
+
+    chr[1] = 0xc3;
+    chr[3] = 0xc3;
+    chr[9] = 0x3;
+    str = AnsiString(chr,sizeof(chr)-1);
+    if(D->df>3)MThrd->ALS("I2C Get TX: (" + AnsiString(str.Length()) + " bytes)");
+    try{
+        ClientWrite(str);
+        str = ClientRead(D->WaitForResponseInterval);
+    }catch(Exception &e){
+        MThrd->ALS("I2CRead error: " + e.Message);
+        return false;
+    }
+    if(str.c_str()[8]) {
+        MThrd->ALS("I2CGetTemp error read from device.");
+        return false;
+    }
+    if(str.c_str()[5]!=0xD){
+        MThrd->ALS("I2CGetTemp error. Not 3 bytes received.");
+        return false;
+    }
+
+    str.c_str()[11] = str.c_str()[11] & 0xFC; //unset status bits (two LSB bits)
+
+    Temp = -46.85 + 175.72*((double)((unsigned short)(str.c_str()[10]<<8)|(unsigned char)str.c_str()[11]))/65536;;
+    return true;
+}
+//---------------------------------------------------------------------------
+bool __fastcall TMaster::I2CSHT20GetUserReg(unsigned char &UserReg){
+    AnsiString str;
+    char chr[] = "\xB\xC2\xB\xC2\x0\xA\x0\x0\x0\x0";
+
+    chr[8] = 0x40;
+    chr[9] = 0xE7; //get user register
+
+    str = AnsiString(chr,sizeof(chr)-1);
+    if(D->df>3)MThrd->ALS("I2C Put TX: (" + AnsiString(str.Length()) + " bytes)");
+
+    try{
+        ClientWrite(str);
+        str = ClientRead(D->WaitForResponseInterval);
+    }catch(Exception &e){
+        MThrd->ALS("I2C Put Byte error: " + e.Message);
+        return false;
+    }
+    if(D->df>3)MThrd->ALS("I2C Put return string: " + StrToHexStr(str));
+    if(str.SubString(1,4)!="\xB\xC2\xB\xC2" ||  str.c_str()[8]) {
+        MThrd->ALS("I2CGetUR error write to device.");
+        return false;
+    }
+
+    ::Sleep(100);
+
+    chr[1] = 0xc3;
+    chr[3] = 0xc3;
+    chr[9] = 0x1;
+    str = AnsiString(chr,sizeof(chr)-1);
+    if(D->df>3)MThrd->ALS("I2C Get TX: (" + AnsiString(str.Length()) + " bytes)");
+    try{
+        ClientWrite(str);
+        str = ClientRead(D->WaitForResponseInterval);
+    }catch(Exception &e){
+        MThrd->ALS("I2CRead error: " + e.Message);
+        return false;
+    }
+    if(D->df>3)MThrd->ALS("I2C Get return string: " + StrToHexStr(str));
+    if(str.SubString(1,4)!="\xB\xC3\xB\xC3" ||  str.c_str()[8]) {
+        MThrd->ALS("I2CGetUR error read from device.");
+        return false;
+    }
+    if(str.c_str()[5]!=0xB){
+        MThrd->ALS("I2CGetUR error. Not 1 byte received.");
+        return false;
+    }
+
+    UserReg = str.c_str()[10];
+    return true;
+}
+//---------------------------------------------------------------------------
+bool __fastcall TMaster::I2CSHT20SetUserReg(unsigned char UserReg){
+    AnsiString str;
+    char chr[] = "\xB\xC2\xB\xC2\x0\xB\x0\x0\x0\x0\x0";
+
+    chr[8] = 0x40;
+    chr[9] = 0xE6; //set user register command
+    chr[10] = UserReg;
+
+    str = AnsiString(chr,sizeof(chr)-1);
+    if(D->df>3)MThrd->ALS("I2C Put TX: (" + AnsiString(str.Length()) + " bytes)");
+
+    try{
+        ClientWrite(str);
+        str = ClientRead(D->WaitForResponseInterval);
+    }catch(Exception &e){
+        MThrd->ALS("I2C Put Byte error: " + e.Message);
+        return false;
+    }
+    if(D->df>3)MThrd->ALS("I2C Put return string: " + StrToHexStr(str));
+    if(str.c_str()[8]) {
+        MThrd->ALS("I2CGetUR error write to device.");
+        return false;
+    }
+
+    return true;
+}
+//---------------------------------------------------------------------------
+bool __fastcall TMaster::I2CLPS331APGetWhoAmIReg(unsigned char &WhoAmIReg){
+    AnsiString str;
+    char chr[] = "\xB\xC2\xB\xC2\x0\xA\x0\x0\x0\x0";
+
+    chr[8] = 0x5C;
+    chr[9] = 0x0F; //get who_am_i register
+
+    str = AnsiString(chr,sizeof(chr)-1);
+    if(D->df>3)MThrd->ALS("I2C Put TX: (" + AnsiString(str.Length()) + " bytes)");
+
+    try{
+        ClientWrite(str);
+        str = ClientRead(D->WaitForResponseInterval);
+    }catch(Exception &e){
+        MThrd->ALS("I2C Put Byte error: " + e.Message);
+        return false;
+    }
+    if(D->df>3)MThrd->ALS("I2C Put return string: " + StrToHexStr(str));
+    if(str.SubString(1,4)!="\xB\xC2\xB\xC2" ||  str.c_str()[8]) {
+        MThrd->ALS("I2CGetWAIR error write to device.");
+        return false;
+    }
+
+    ::Sleep(10);
+
+    chr[1] = 0xc3;
+    chr[3] = 0xc3;
+    chr[9] = 0x1;
+    str = AnsiString(chr,sizeof(chr)-1);
+    if(D->df>3)MThrd->ALS("I2C Get TX: (" + AnsiString(str.Length()) + " bytes)");
+    try{
+        ClientWrite(str);
+        str = ClientRead(D->WaitForResponseInterval);
+    }catch(Exception &e){
+        MThrd->ALS("I2CRead error: " + e.Message);
+        return false;
+    }
+    if(D->df>3)MThrd->ALS("I2C Get return string: " + StrToHexStr(str));
+    if(str.SubString(1,4)!="\xB\xC3\xB\xC3" ||  str.c_str()[8]) {
+        MThrd->ALS("I2CGetWAIR error read from device.");
+        return false;
+    }
+    if(str.c_str()[5]!=0xB){
+        MThrd->ALS("I2CGetWAIR error. Not 1 byte received.");
+        return false;
+    }
+
+    WhoAmIReg = str.c_str()[10];
     return true;
 }
 //---------------------------------------------------------------------------
@@ -1455,6 +1805,10 @@ int __fastcall TMThread::GetParam(void){
 //---------------------------------------------------------------------------
 int __fastcall TMaster::ClientWrite(AnsiString str){
     //if(D->df)MThrd->AddLogString("ClientWrite() called...");
+    if(str.Length()!=str.c_str()[4]*256 + str.c_str()[5]){
+        MThrd->ALS("ClientWrite() Error check length of string: " + AnsiString(str.Length()) + AnsiString("not equal") + AnsiString(str.c_str()[4]*256 + str.c_str()[5]));
+        return 0;
+    }
     if(MThrd->NC) return 0;
     try{
         if(D->df>3)MThrd->ALS("ClientWrite() Start writing: [" + StrToHexStr(str) + "] " + AnsiString(str.Length()) + " bytes");

@@ -49,6 +49,43 @@ __fastcall TDataSet::TDataSet(AnsiString iM, int iCH, int iP, int iD, int iADDR,
     IP[3] = iM.ToIntDef(0);
 }
 //---------------------------------------------------------------------------
+__fastcall TDataSet::TDataSet(AnsiString iM, int iCH, int iP, int iD, int iADDR, int iX, int iDT, bool iCount){
+    count_cum = iCount;
+    recs_parsed = 0;
+    recs_count = 0;
+    M = iM;
+    CH = iCH;
+    P = iP;
+    D = iD;
+    X = iX;
+    DT = iDT;
+    ADDR = iADDR;
+    for(int i=0;i<3;i++){
+        IP[i] = iM.SubString(1,iM.Pos(".")-1).ToIntDef(0);iM.Delete(1,iM.Pos("."));
+    }
+    IP[3] = iM.ToIntDef(0);
+}
+//---------------------------------------------------------------------------
+__fastcall TDataSet::TDataSet(AnsiString iM, int iCH, int iP, int iD, int iADDR, int iX, int iDT, bool iCount, int N, int P){
+    n_pf = N;
+    p_n = P;
+
+    count_cum = iCount;
+    recs_parsed = 0;
+    recs_count = 0;
+    M = iM;
+    CH = iCH;
+    P = iP;
+    D = iD;
+    X = iX;
+    DT = iDT;
+    ADDR = iADDR;
+    for(int i=0;i<3;i++){
+        IP[i] = iM.SubString(1,iM.Pos(".")-1).ToIntDef(0);iM.Delete(1,iM.Pos("."));
+    }
+    IP[3] = iM.ToIntDef(0);
+}
+//---------------------------------------------------------------------------
 __fastcall TDataSet::~TDataSet(void){
     VV.clear();
 }
@@ -85,10 +122,9 @@ void __fastcall TEDForm::ChannelCBChange(TObject *Sender)
     //}
 }
 //---------------------------------------------------------------------------
-void __fastcall TEDForm::AddButtonClick(TObject *Sender)
-{
+void __fastcall TEDForm::AddButtonClick(TObject *Sender){
     TDataSet *d;
-    d = new TDataSet(MasterCB->Text,ChannelCB->Text.ToIntDef(0)-1,ParameterCB->Text.ToIntDef(-1),NDimCB->Text.ToIntDef(1),AddressCB->Text.ToIntDef(ChannelCB->Text.ToIntDef(0)),XidxCB->Text.ToIntDef(0));
+    d = new TDataSet(MasterCB->Text,ChannelCB->Text.ToIntDef(0)-1,ParameterCB->Text.ToIntDef(-1),NDimCB->Text.ToIntDef(1),AddressCB->Text.ToIntDef(0),XidxCB->Text.ToIntDef(0),DataTypeCB->Text.ToIntDef(0),CheckBox2->Checked);
     //ParametersLB->Items->Add(MasterCB->Text + " Ch" + ChannelCB->Text + " " + ParameterCB->Text);
     ParametersLB->Items->AddObject(MasterCB->Text + " Ch" + ChannelCB->Text + "(" + AnsiString(d->ADDR) + ")" +
         " " + ParameterCB->Text + "(" + AnsiString(d->X) + "," + AnsiString(d->D) + ")", (TObject*)d);
@@ -148,6 +184,7 @@ void __fastcall TEDThread::ReadData(void){
             for(int j=0;j<np && !Terminated;j++){ // for all added parameters
                 if(!IsNan(hdr.PCTime.Val)
                     && hdr.ValueSize
+                    && hdr.DataType == ((TDataSet*)PL->Items[j])->DT
                     && hdr.PCTime >= t1
                     && hdr.PCTime <= t2
                     && hdr.RelayChannel == ((TDataSet*)PL->Items[j])->CH
@@ -156,7 +193,13 @@ void __fastcall TEDThread::ReadData(void){
                     && ip == ((TDataSet*)PL->Items[j])->M
                     ) {
                         recs++;
-                        ParseParameter(hdr.PCTime,hdr.Parameter,s,((TDataSet*)Form->ParametersLB->Items->Objects[j])->VV);
+                        ((TDataSet*)PL->Items[j])->recs_count++;
+                        if(((TDataSet*)PL->Items[j])->count_cum)ParseParameter(hdr.PCTime,hdr.Parameter,s,((TDataSet*)PL->Items[j])->recs_count,((TDataSet*)Form->ParametersLB->Items->Objects[j])->VV);
+                        else{
+                            ((TDataSet*)PL->Items[j])->recs_parsed =
+                            ((TDataSet*)PL->Items[j])->recs_parsed +
+                            ParseParameter(hdr.PCTime,hdr.Parameter,s,0,((TDataSet*)Form->ParametersLB->Items->Objects[j])->VV);
+                        }
                     }
             }
         }
@@ -167,6 +210,12 @@ void __fastcall TEDThread::ReadData(void){
 
     Form->ParametersLB->Items->Add("--- end processing thread ---");
     Form->ParametersLB->Items->Add("Total records found: " + AnsiString(recs));
+    for(int i_ds=0;i_ds<np;i_ds++){
+        Form->ParametersLB->Items->Add("DS" + AnsiString(i_ds+1) + ": records found/parsed: " +
+            AnsiString(((TDataSet*)PL->Items[i_ds])->recs_parsed) + " / " +
+            AnsiString(((TDataSet*)PL->Items[i_ds])->recs_count)
+            );
+    }
 }
 //---------------------------------------------------------------------------
 void __fastcall TEDThread::DisplayFiles(AnsiString path)
@@ -178,6 +227,7 @@ void __fastcall TEDThread::DisplayFiles(AnsiString path)
 
     t1 = Form->FromPicker->DateTime;
     t2 = Form->ToPicker->DateTime;
+    dtype = Form->DataTypeCB->Text.ToIntDef(0);
     //TStringList *FileRange;
     //FileRange = new TStringList();
 
@@ -279,10 +329,11 @@ void __fastcall TEDThread::ParseParameter(TDateTime iDT, int iP, AnsiString iS, 
     }
 }
 //---------------------------------------------------------------------------
-void __fastcall TEDThread::ParseParameter(TDateTime iDT, int iP, AnsiString iS, std::vector<double*> &oV){
+int __fastcall TEDThread::ParseParameter(TDateTime iDT, int iP, AnsiString iS, long count, std::vector<double*> &oV){
 
     AnsiString temp_s;
     double *arrayOfDouble;
+    int ret;
 
     switch(iP){
 
@@ -290,11 +341,13 @@ void __fastcall TEDThread::ParseParameter(TDateTime iDT, int iP, AnsiString iS, 
         arrayOfDouble = new double[3];
         arrayOfDouble[0] = iDT;
         for(int i=1;i<2&&iS.Pos(",");i++){
-        try{
+            try{
                 temp_s = iS.SubString(1,iS.Pos(",")-1);
                 if(temp_s.Pos(".")) temp_s.c_str()[temp_s.Pos(".")-1]=',';
                 arrayOfDouble[i] = temp_s.ToDouble();
+                ret=1;
             }catch(Exception &e){
+                ret=0;
                 Form->ParametersLB->Items->Add(iDT.DateTimeString() + " " + iS + " err1");
             }
             iS.Delete(1,iS.Pos(","));
@@ -302,7 +355,9 @@ void __fastcall TEDThread::ParseParameter(TDateTime iDT, int iP, AnsiString iS, 
         try{
             if(iS.Pos(".")) iS.c_str()[iS.Pos(".")-1]=',';
             arrayOfDouble[2] = iS.ToDouble();
+            ret=1;
         }catch(Exception &e){
+            ret=0;
             Form->ParametersLB->Items->Add(iDT.DateTimeString() + " " + iS + " err2");
         }
         oV.push_back(arrayOfDouble);
@@ -316,7 +371,9 @@ void __fastcall TEDThread::ParseParameter(TDateTime iDT, int iP, AnsiString iS, 
                 temp_s = iS.SubString(1,iS.Pos(",")-1);
                 if(temp_s.Pos(".")) temp_s.c_str()[temp_s.Pos(".")-1]=',';
                 arrayOfDouble[i] = temp_s.ToDouble();
+                ret=1;
             }catch(Exception &e){                                             
+                ret=0;
                 Form->ParametersLB->Items->Add(iDT.DateTimeString() + " " + iS + " err1");
             }
             iS.Delete(1,iS.Pos(","));
@@ -324,7 +381,9 @@ void __fastcall TEDThread::ParseParameter(TDateTime iDT, int iP, AnsiString iS, 
         try{
             if(iS.Pos(".")) iS.c_str()[iS.Pos(".")-1]=',';
             arrayOfDouble[6] = iS.ToDouble();
+            ret=1;
         }catch(Exception &e){
+            ret=0;
             Form->ParametersLB->Items->Add(iDT.DateTimeString() + " " + iS + " err2");
         }
         oV.push_back(arrayOfDouble);
@@ -334,15 +393,20 @@ void __fastcall TEDThread::ParseParameter(TDateTime iDT, int iP, AnsiString iS, 
         arrayOfDouble = new double[2];
         arrayOfDouble[0] = iDT;
         if(iS.Pos(".")) iS.c_str()[iS.Pos(".")-1]=',';
-        try{
-            arrayOfDouble[1] = iS.ToDouble();
-        }catch(Exception &e){
-            Form->ParametersLB->Items->Add(iDT.DateTimeString() + " " + iS + " err");
+        if(count)arrayOfDouble[1] = (double)count;
+        else{
+            try{
+                arrayOfDouble[1] = iS.ToDouble();
+                ret = 1;
+            }catch(Exception &e){
+                ret=0;
+                Form->ParametersLB->Items->Add(iDT.DateTimeString() + " " + iS + " err");
+            }
         }
         oV.push_back(arrayOfDouble);
     break;
     }
-
+    return ret;
 }
 //---------------------------------------------------------------------------
 void __fastcall TEDForm::DrawButtonClick(TObject *Sender)
@@ -350,6 +414,7 @@ void __fastcall TEDForm::DrawButtonClick(TObject *Sender)
     TPointSeries *S;
     MainForm->Chart1->RemoveAllSeries();
     MainForm->Chart1->Title->Text->Strings[0] = "Parameters graph";
+    ParametersLB->Items->Add("Draw started...");
     for(int k=0;k<EDT->np;k++){
         S = new TPointSeries(NULL);
         //S->Pointer->Style = psSmallDot;
@@ -372,6 +437,7 @@ void __fastcall TEDForm::DrawButtonClick(TObject *Sender)
             //ParametersLB->Items->Add(AnsiString(((TDataSet*)ParametersLB->Items->Objects[0])->V[i].Y));
         }
     }
+    ParametersLB->Items->Add("...Draw done.");
 }
 //---------------------------------------------------------------------------
 void __fastcall TEDForm::DateTimePicker1Change(TObject *Sender){
@@ -400,6 +466,11 @@ __fastcall TEDThread::TEDThread(bool CreateSuspended)
 }
 //---------------------------------------------------------------------------
 __fastcall TEDThread::~TEDThread(void){
+    TDataSet *d;
+    for(int i_item;i_item<PL->Count;i_item++){
+        d = (TDataSet*)PL->Items[i_item];
+        delete d;
+    }
     delete PL;
     delete FileRange;
 }
@@ -415,13 +486,46 @@ void __fastcall TEDForm::Button2Click(TObject *Sender)
 }
 //---------------------------------------------------------------------------
 
-void __fastcall TEDForm::FormClose(TObject *Sender, TCloseAction &Action)
-{
+void __fastcall TEDForm::FormClose(TObject *Sender, TCloseAction &Action){
     EDT->Terminate();
     EDT->WaitFor();
     delete EDT;
 }
 //---------------------------------------------------------------------------
+void __fastcall TEDForm::Button4Click(TObject *Sender){
+    TDataSet *d;
+    for(int i_chan=0;i_chan<12;i_chan++){
+        d = new TDataSet(MasterCB->Text,i_chan,ParameterCB->Text.ToIntDef(-1),NDimCB->Text.ToIntDef(1),i_chan,XidxCB->Text.ToIntDef(0));
+        //ParametersLB->Items->Add(MasterCB->Text + " Ch" + ChannelCB->Text + " " + ParameterCB->Text);
+        ParametersLB->Items->AddObject(MasterCB->Text + " Ch" + AnsiString(i_chan) + "(" + AnsiString(d->ADDR) + ")" +
+        " " + ParameterCB->Text + "(" + AnsiString(d->X) + "," + AnsiString(d->D) + ")", (TObject*)d);
+
+        EDT->PL->Add((TObject*)d);
+
+        EDT->np++;
+        //MainForm->Chart1->AddSeries()
+        FromPickerChange(Sender);
+        ToPickerChange(Sender);
+        //delete d; //было закоментировано
+    }
+}
+//---------------------------------------------------------------------------
 
 
+
+void __fastcall TEDForm::CheckBox2Click(TObject *Sender)
+{
+    XidxCB->Text = "0";
+    XidxCB->Enabled = !CheckBox2->Checked;
+    NDimCB->Enabled = !CheckBox2->Checked;
+}
+//---------------------------------------------------------------------------
+void __fastcall TEDForm::Button5Click(TObject *Sender){
+    for (int i_cc = 1; i_cc<=12; i_cc++){
+        ChannelCB->Text = i_cc;
+        AddressCB->Text = i_cc;
+        AddButtonClick(Sender);   
+    }
+}
+//---------------------------------------------------------------------------
 

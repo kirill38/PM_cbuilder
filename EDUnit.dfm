@@ -1,8 +1,8 @@
 object EDForm: TEDForm
-  Left = 252
-  Top = 169
-  Width = 622
-  Height = 269
+  Left = 688
+  Top = 278
+  Width = 659
+  Height = 265
   Caption = 'Extract data'
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
@@ -14,8 +14,8 @@ object EDForm: TEDForm
   OnClose = FormClose
   OnCreate = FormCreate
   DesignSize = (
-    614
-    242)
+    651
+    238)
   PixelsPerInch = 96
   TextHeight = 13
   object Label1: TLabel
@@ -40,7 +40,7 @@ object EDForm: TEDForm
   end
   object Label3: TLabel
     Left = 37
-    Top = 83
+    Top = 107
     Width = 32
     Height = 13
     Alignment = taRightJustify
@@ -48,7 +48,7 @@ object EDForm: TEDForm
   end
   object Label4: TLabel
     Left = 17
-    Top = 107
+    Top = 131
     Width = 52
     Height = 13
     Alignment = taRightJustify
@@ -56,7 +56,7 @@ object EDForm: TEDForm
   end
   object Label5: TLabel
     Left = 21
-    Top = 131
+    Top = 155
     Width = 48
     Height = 13
     Alignment = taRightJustify
@@ -64,11 +64,19 @@ object EDForm: TEDForm
   end
   object NDimLabel: TLabel
     Left = 22
-    Top = 155
+    Top = 179
     Width = 47
     Height = 13
     Alignment = taRightJustify
     Caption = 'X/Y index'
+  end
+  object Label6: TLabel
+    Left = 23
+    Top = 84
+    Width = 46
+    Height = 13
+    Alignment = taRightJustify
+    Caption = 'Data type'
   end
   object FromPicker: TDateTimePicker
     Left = 29
@@ -102,7 +110,7 @@ object EDForm: TEDForm
   end
   object MasterCB: TComboBox
     Left = 73
-    Top = 80
+    Top = 104
     Width = 100
     Height = 21
     ItemHeight = 13
@@ -112,7 +120,7 @@ object EDForm: TEDForm
   end
   object ChannelCB: TComboBox
     Left = 73
-    Top = 104
+    Top = 128
     Width = 48
     Height = 21
     ItemHeight = 13
@@ -122,7 +130,7 @@ object EDForm: TEDForm
   end
   object ParameterCB: TComboBox
     Left = 73
-    Top = 128
+    Top = 152
     Width = 100
     Height = 21
     ItemHeight = 13
@@ -131,10 +139,10 @@ object EDForm: TEDForm
     Text = '199'
   end
   object ParametersLB: TListBox
-    Left = 216
+    Left = 224
     Top = 8
-    Width = 306
-    Height = 206
+    Width = 335
+    Height = 202
     Anchors = [akLeft, akTop, akRight, akBottom]
     ItemHeight = 13
     TabOrder = 5
@@ -142,7 +150,7 @@ object EDForm: TEDForm
   end
   object AddButton: TButton
     Left = 128
-    Top = 192
+    Top = 200
     Width = 75
     Height = 17
     Caption = 'Add to list'
@@ -159,8 +167,8 @@ object EDForm: TEDForm
     TabOrder = 7
   end
   object DrawButton: TButton
-    Left = 529
-    Top = 112
+    Left = 566
+    Top = 115
     Width = 75
     Height = 25
     Anchors = [akTop, akRight]
@@ -169,7 +177,7 @@ object EDForm: TEDForm
     OnClick = DrawButtonClick
   end
   object SaveButton: TButton
-    Left = 529
+    Left = 566
     Top = 168
     Width = 75
     Height = 17
@@ -179,8 +187,8 @@ object EDForm: TEDForm
     TabOrder = 9
   end
   object CloseButton: TButton
-    Left = 529
-    Top = 192
+    Left = 566
+    Top = 188
     Width = 75
     Height = 22
     Anchors = [akRight, akBottom]
@@ -189,7 +197,7 @@ object EDForm: TEDForm
     OnClick = CloseButtonClick
   end
   object ReadDataButton: TButton
-    Left = 529
+    Left = 566
     Top = 40
     Width = 75
     Height = 17
@@ -199,7 +207,7 @@ object EDForm: TEDForm
     TabOrder = 11
   end
   object Button1: TButton
-    Left = 529
+    Left = 566
     Top = 8
     Width = 75
     Height = 25
@@ -240,8 +248,8 @@ object EDForm: TEDForm
   end
   object ProgressBar1: TProgressBar
     Left = 0
-    Top = 226
-    Width = 614
+    Top = 222
+    Width = 651
     Height = 16
     Align = alBottom
     Min = 0
@@ -249,7 +257,7 @@ object EDForm: TEDForm
     TabOrder = 15
   end
   object Button2: TButton
-    Left = 529
+    Left = 566
     Top = 144
     Width = 75
     Height = 17
@@ -261,7 +269,7 @@ object EDForm: TEDForm
   end
   object NDimCB: TComboBox
     Left = 128
-    Top = 152
+    Top = 176
     Width = 45
     Height = 21
     ItemHeight = 13
@@ -279,7 +287,7 @@ object EDForm: TEDForm
   object Button3: TButton
     Left = 176
     Top = 80
-    Width = 33
+    Width = 41
     Height = 17
     Caption = 'Scan'
     Enabled = False
@@ -288,24 +296,25 @@ object EDForm: TEDForm
   object Button4: TButton
     Left = 176
     Top = 104
-    Width = 33
+    Width = 41
     Height = 17
-    Caption = 'Scan'
+    Caption = 'Fill Cl.'
     Enabled = False
     TabOrder = 19
+    OnClick = Button4Click
   end
   object Button5: TButton
     Left = 176
     Top = 128
-    Width = 33
+    Width = 41
     Height = 17
-    Caption = 'Scan'
-    Enabled = False
+    Caption = 'Fill St.'
     TabOrder = 20
+    OnClick = Button5Click
   end
   object AddressCB: TComboBox
     Left = 128
-    Top = 104
+    Top = 128
     Width = 45
     Height = 21
     ItemHeight = 13
@@ -315,7 +324,7 @@ object EDForm: TEDForm
   end
   object XidxCB: TComboBox
     Left = 72
-    Top = 152
+    Top = 176
     Width = 48
     Height = 21
     ItemHeight = 13
@@ -329,5 +338,31 @@ object EDForm: TEDForm
       '4'
       '5'
       '6')
+  end
+  object DataTypeCB: TComboBox
+    Left = 73
+    Top = 80
+    Width = 100
+    Height = 21
+    ItemHeight = 13
+    TabOrder = 23
+    Text = '0'
+    Items.Strings = (
+      '0'
+      '1'
+      '2'
+      '3'
+      '4')
+  end
+  object CheckBox2: TCheckBox
+    Left = 176
+    Top = 176
+    Width = 46
+    Height = 17
+    BiDiMode = bdLeftToRight
+    Caption = 'count'
+    ParentBiDiMode = False
+    TabOrder = 24
+    OnClick = CheckBox2Click
   end
 end

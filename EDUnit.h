@@ -21,6 +21,12 @@ public:
 class TDataSet {
 public:
     AnsiString M; //address of master
+    unsigned long recs_count;
+    unsigned long recs_parsed;
+    bool count_cum;
+    int n_pf; //n per file
+    int p_n;  //1 ...p... 1  skip p some records between n
+    int DT;
     int CH;
     int ADDR;
     int P;
@@ -30,6 +36,8 @@ public:
     __fastcall TDataSet(AnsiString iM, int iCH, int iP);
     __fastcall TDataSet(AnsiString iM, int iCH, int iP, int iD);
     __fastcall TDataSet(AnsiString iM, int iCH, int iP, int iD, int iADDR, int iX);
+    __fastcall TDataSet(AnsiString iM, int iCH, int iP, int iD, int iADDR, int iX, int iDT, bool iCount);
+    __fastcall TDataSet::TDataSet(AnsiString iM, int iCH, int iP, int iD, int iADDR, int iX, int iDT, bool iCount, int N, int P);
     __fastcall ~TDataSet(void);
     //std::vector<XY> V;
     std::vector<double*> VV;
@@ -67,6 +75,9 @@ __published:	// IDE-managed Components
     TButton *Button5;
     TComboBox *AddressCB;
     TComboBox *XidxCB;
+    TComboBox *DataTypeCB;
+    TLabel *Label6;
+    TCheckBox *CheckBox2;
     void __fastcall FormCreate(TObject *Sender);
     void __fastcall MasterCBChange(TObject *Sender);
     void __fastcall ChannelCBChange(TObject *Sender);
@@ -83,6 +94,9 @@ __published:	// IDE-managed Components
     void __fastcall ToPickerChange(TObject *Sender);
     void __fastcall Button2Click(TObject *Sender);
     void __fastcall FormClose(TObject *Sender, TCloseAction &Action);
+    void __fastcall Button4Click(TObject *Sender);
+    void __fastcall CheckBox2Click(TObject *Sender);
+    void __fastcall Button5Click(TObject *Sender);
 
 private:	// User declarations
 
@@ -111,12 +125,13 @@ public:
     void __fastcall DisplayFiles(AnsiString path);
     void __fastcall ReadData(void);
     void __fastcall ParseParameter(TDateTime iDT, int iP, AnsiString iS, std::vector<XY> &oV);
-    void __fastcall ParseParameter(TDateTime iDT, int iP, AnsiString iS, std::vector<double*> &oV);
+    int __fastcall ParseParameter(TDateTime iDT, int iP, AnsiString iS, long count, std::vector<double*> &oV);
 
     std::ifstream file2read;
     TList *PL;
     TStringList *FileRange;
     TDateTime t1,t2;
+    int dtype;
     int np;
 };
 //---------------------------------------------------------------------------

@@ -26,7 +26,7 @@ __fastcall TData::TData(TIniFile *AIni){
     ofc = 0;
     
     busy = false;
-    
+
     ff1 = false;
 
     Ini = AIni;
@@ -68,7 +68,9 @@ __fastcall TData::TData(TIniFile *AIni){
     //datafile.clear();
     //datafile.close();
     filename = Form->Path + "\\datacat\\" + filename;
+    lockfilename = AnsiString(filename+".lock");
 
+    lockfile.open(lockfilename.c_str(), ios::out | ios::binary);
     datafile.open(filename.c_str(), ios::out | ios::binary);
 
     dhdr = new TDataHeader();
@@ -335,6 +337,13 @@ __fastcall TData::~TData(void){
     delete dhdr;
 
     datafile.close();
+    lockfile.close();
+
+    if (remove(lockfilename.c_str()) != 0)
+		if(df)Form->LogMemo->Lines->Add("File deletion failed");
+	else
+		if(df)Form->LogMemo->Lines->Add("File deleted successfully");
+
 
     delete LogListA;
     delete LogListB;
@@ -366,11 +375,15 @@ void __fastcall TData::NextFile(void){
     dfhdr.CRC = 0xffff;
     dfhdr.rawdata[0] = 0x20;
     datafile.seekp(0);
-    datafile.write((char*)&dfhdr, sizeof(TDFhdr));
+    datafile.write((char*)&dfhdr, sizeof(TDFhdr));  //введена запись заголовка после заполнения файла
 
     do {
         //cfc++;
-        if(!FileExists(filename))datafile.close();
+        if(!FileExists(filename)){
+            datafile.close();
+            lockfile.close();
+            remove(lockfilename.c_str());
+        }
     }while(datafile.is_open());
 
     while(!datafile.is_open()){
@@ -389,6 +402,8 @@ void __fastcall TData::NextFile(void){
                     AnsiString().sprintf("%03d",file_index);
             ex_file_index++;
             }
+        lockfilename = AnsiString(filename+".lock");
+        lockfile.open(lockfilename.c_str(), ios::out | ios::binary);
         datafile.open(filename.c_str(), ios::out | ios::binary);
         ::Sleep(50);
     }
@@ -411,6 +426,22 @@ void __fastcall TData::StoreData(TDateTime APCTime, AnsiString AMasterAddress, T
     if(df>3)Form->LogMemo->Lines->Add("Write to data file...");
     cfc++;
     dhdr->AddData(APCTime, AMasterAddress, AChannel, AParameter, AValueSize);
+    //dhdr->
+    datafile.write((char *)&dhdr->hdr, sizeof(dhdr->hdr));
+    if(s.Length())datafile.write(s.c_str(), s.Length());
+    do {
+        filesize = datafile.tellp();
+    } while(filesize < 0);
+    if(filesize>=MaxFileSize)NextFile();
+    ofc++;
+}
+//---------------------------------------------------------------------------
+void __fastcall TData::StoreMasterData(TDateTime APCTime, AnsiString AMasterAddress, int AParameter, int AValueSize, AnsiString s){
+
+    if(df>3)Form->LogMemo->Lines->Add("Write to data file...");
+    cfc++;
+    dhdr->AddMasterData(APCTime, AMasterAddress, AParameter, AValueSize);
+    //dhdr->
     datafile.write((char *)&dhdr->hdr, sizeof(dhdr->hdr));
     if(s.Length())datafile.write(s.c_str(), s.Length());
     do {

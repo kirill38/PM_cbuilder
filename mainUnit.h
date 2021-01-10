@@ -109,6 +109,7 @@ __published:	// IDE-managed Components
         TFastLineSeries *FastLineSeries1;
         TFastLineSeries *FastLineSeries2;
         TPointSeries *PointSeries1;
+    TPageScroller *PageScroller1;
     void __fastcall StartButtonClick(TObject *Sender);
     void __fastcall ReFreshTimerTimer(TObject *Sender);
     void __fastcall FormClose(TObject *Sender, TCloseAction &Action);

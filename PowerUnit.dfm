@@ -1,8 +1,8 @@
 object PowerForm: TPowerForm
-  Left = 486
-  Top = 0
-  Width = 486
-  Height = 740
+  Left = 765
+  Top = 112
+  Width = 506
+  Height = 767
   Caption = 'Power Manager'
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET

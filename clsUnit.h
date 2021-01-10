@@ -34,6 +34,7 @@ public:
     void __fastcall NextFile(void);
 
     std::ofstream datafile;
+    std::ofstream lockfile;
     std::ofstream tempfile;
     //std::ofstream bufffile;
     std::ifstream datafile_to_read;
@@ -43,12 +44,14 @@ public:
     long int filesize;
     long int MaxFileSize;
     AnsiString filename;
+    AnsiString lockfilename;
     AnsiString filepath;
     unsigned long int ofc,cfc;
 
     TDataHeader *dhdr;
 
     void __fastcall StoreData(TDateTime APCTime, AnsiString AMasterAddress, TChannel *AChannel, int AParameter, int AValueSize, AnsiString s);
+    void __fastcall StoreMasterData(TDateTime APCTime, AnsiString AMasterAddress, int AParameter, int AValueSize, AnsiString s);
 
     unsigned long int error_count, SDBCounter, partial_read_count, inadequate, NSR;
 
